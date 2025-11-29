@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**", "/user/**", "/actuator/**", "/imagekit/auth").permitAll()
-                        .requestMatchers("/products", "/products/{id}").permitAll()
+                        .requestMatchers("/products", "/products/{id}", "/orders/create").permitAll()
                         .requestMatchers("/categories/**").permitAll()
 
                         .requestMatchers("/products/add", "/products/update/**", "/products/delete/**")

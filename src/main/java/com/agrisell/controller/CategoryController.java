@@ -2,6 +2,9 @@ package com.agrisell.controller;
 
 import java.util.List;
 
+import com.agrisell.dto.CreateCategoryRequest;
+import com.agrisell.model.Category;
+import com.agrisell.repository.CategoryRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,12 +25,25 @@ import lombok.RequiredArgsConstructor;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private final CategoryRepository categoryRepository;
 
-    @PreAuthorize("hasAnyRole('ADMIN')")
-    @PostMapping("/add")
-    public ResponseEntity<CategoryDTO> addCategory(@RequestBody CategoryDTO dto) {
-        return ResponseEntity.ok(categoryService.addCategory(dto));
+    @GetMapping("/main")
+    public  ResponseEntity<?> getMainCategories() {
+        return  ResponseEntity.ok(categoryService.getMainCategories());
     }
+
+    @GetMapping("/sub/{parentId}")
+    public ResponseEntity<?> getSubCategories(@PathVariable Long parentId) {
+        return  ResponseEntity.ok(categoryService.getSubCategories(parentId));
+    }
+
+
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    @PostMapping("/add")
+    public ResponseEntity<?> addCategory(@RequestBody CreateCategoryRequest req) {
+        return categoryService.addCategory(req);
+    }
+
 
 
     // 🔹 Get all categories

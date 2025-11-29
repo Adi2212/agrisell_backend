@@ -1,27 +1,24 @@
 package com.agrisell.dto;
 
 import lombok.*;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CategoryDTO {
+public class SubCategoryDTO {
 
     private Long id;
     private String name;
     private String imageUrl;
 
-    // To avoid circular references, only pass minimal parent details
-    private ParentCategoryDTO parent;
-
-    private List<SubCategoryDTO> subcategories;
+    // minimal parent details
+    private ParentDTO parent;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ParentCategoryDTO {
+    public static class ParentDTO {
         private Long id;
         private String name;
     }

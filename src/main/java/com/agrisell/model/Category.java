@@ -1,28 +1,34 @@
 package com.agrisell.model;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Entity
-@Table(name = "categories")
-@Getter
-@Setter
+@Table(name = "category")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; 
+    private Long id;
 
     @Column(nullable = false, unique = true)
     private String name;
 
+    // NULL = Main Category, NOT NULL = Subcategory
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    @JsonIgnore
+    private Category parent;
 
-    @Column(name = "image_url")
-    private String imageUrl; 
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<Category> subcategories;
 
-   
-    private boolean active = true;
+    private String imageUrl;
 }
