@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthService {
 
     private final UserRepository userRepo;
@@ -29,7 +30,6 @@ public class AuthService {
     private final ModelMapper mapper;
 
     // ✅ FARMER REGISTRATION
-    @Transactional
     public LoginResponseDTO registerFarmer(UserRegistetionDTO dto) {
         if (userRepo.findByEmail(dto.getEmail()).isPresent())
             throw new IllegalArgumentException("Email already exists");
@@ -38,8 +38,7 @@ public class AuthService {
         user.setPassword(encoder.encode(dto.getPassword()));
         user.setRole(Role.FARMER);
 
-        if (user.getFarmer() != null)
-            user.getFarmer().setUser(user);
+
         if (user.getAddress() != null)
             user.getAddress().setUser(user);
 
@@ -51,7 +50,6 @@ public class AuthService {
     }
 
     // ✅ CUSTOMER REGISTRATION
-    @Transactional
     public LoginResponseDTO registerBuyer(UserRegistetionDTO dto) {
         if (userRepo.findByEmail(dto.getEmail()).isPresent())
             throw new IllegalArgumentException("Email already exists");
@@ -60,8 +58,7 @@ public class AuthService {
         user.setPassword(encoder.encode(dto.getPassword()));
         user.setRole(Role.BUYER);
 
-        if (user.getCustomer() != null)
-            user.getCustomer().setUser(user);
+
         if (user.getAddress() != null)
             user.getAddress().setUser(user);
 
@@ -87,30 +84,5 @@ public class AuthService {
         return new LoginResponseDTO(token, "Login successful", userDTO);
     }
 
-    // ✅ GET USER BY ID
-    public UserDTO getUserById(Long id) {
-        User user = userRepo.findById(id)
-                .orElseThrow(() -> new UserNotFound("User not found"));
-        return mapper.map(user, UserDTO.class);
-    }
 
-    // ✅ UPDATE ADDRESS (secured)
-    @Transactional
-    public UserDTO setUserAddress(Long userId, AddressDTO addressDTO) {
-
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new UserNotFound("User not found"));
-
-        Address address = user.getAddress();
-        if (address == null) {
-            address = new Address();
-            address.setUser(user);
-        }
-
-        mapper.map(addressDTO, address);
-        user.setAddress(address);
-        userRepo.save(user);
-
-        return mapper.map(user, UserDTO.class);
-    }
 }

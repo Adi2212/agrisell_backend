@@ -27,19 +27,19 @@ public class AgrisellBackendApplication {
 		return mapper;
 	}
 	
-//	@Bean
-//	CommandLineRunner initAdmin(UserRepository repo, BCryptPasswordEncoder encoder) {
-//	    return args -> {
-//	        if (repo.findByEmail("admin@agrisell.com").isEmpty()) {
-//	            User admin = new User();
-//	            admin.setName("System Admin");
-//	            admin.setEmail("admin@agrisell.com");
-//	            admin.setPassword(encoder.encode("admin123"));
-//	            admin.setRole(Role.ADMIN);
-//	            repo.save(admin);
-//	            System.out.println("✅ Admin user created: admin@agrisell.com / admin123");
-//	        }
-//	    };
-//	}
+	@Bean
+	CommandLineRunner initAdmin(UserRepository repo, BCryptPasswordEncoder encoder) {
+	    return args -> {
+	        if (repo.findByEmail("admin@agrisell.com").isEmpty()) {
+	            User admin = new User();
+	            admin.setName("System Admin");
+	            admin.setEmail("admin@agrisell.com");
+	            admin.setPassword(encoder.encode("admin123"));
+	            admin.setRole(Role.ADMIN);
+	            repo.save(admin);
+	            System.out.println("✅ Admin user created: admin@agrisell.com / admin123");
+	        }
+	    };
+	}
 
 }

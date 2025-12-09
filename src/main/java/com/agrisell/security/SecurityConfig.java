@@ -34,7 +34,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/products/add", "/products/update/**", "/products/delete/**")
                         .hasAnyAuthority("ROLE_FARMER","ROLE_ADMIN")
-                        .requestMatchers("/categories/add", "/user/get")
+                        .requestMatchers("/categories/add", "/user/get", "admin/**")
                         .hasAnyAuthority("ROLE_ADMIN")
                         .requestMatchers("/user/address")
                         .hasAnyAuthority("ROLE_FARMER","ROLE_BUYER")

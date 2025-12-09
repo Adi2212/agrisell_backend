@@ -17,13 +17,6 @@ import java.util.List;
 class UserController {
 private final UserService userService;
 
-    // ✅ Get All User
-    @PreAuthorize("hasAnyRole('ADMIN')")
-    @GetMapping("/get")
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
-    }
-
     // ✅ Get User by ID
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {

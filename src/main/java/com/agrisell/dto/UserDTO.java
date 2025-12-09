@@ -1,5 +1,6 @@
 package com.agrisell.dto;
 
+import com.agrisell.model.AccStatus;
 import com.agrisell.model.Address;
 
 import lombok.AllArgsConstructor;
@@ -13,8 +14,8 @@ public class UserDTO {
     private Long id;
     private String name;
     private String email;
+    private String phone;
     private String role;
-    private FarmerDTO farmer;
-    private CustomerDTO customer;
     private Address address;
+    private AccStatus accStatus;
 }

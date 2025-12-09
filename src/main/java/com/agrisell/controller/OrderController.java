@@ -36,9 +36,9 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateStatus(id, status));
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<?> userOrders(@PathVariable Long userId){
-        return ResponseEntity.ok(orderService.getUserOrders(userId));
+    @GetMapping("/user")
+    public ResponseEntity<?> userOrders(HttpServletRequest request){
+        return ResponseEntity.ok(orderService.getUserOrders(request));
     }
 
     @GetMapping("/single/{id}")

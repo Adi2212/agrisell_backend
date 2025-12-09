@@ -24,13 +24,6 @@ public class UserService {
     private final ModelMapper mapper;
     private final JwtUtil jwtUtil;
 
-    // ✅ GET ALL USER
-    public List<UserDTO> getAllUsers() {
-        List<User> users = userRepo.findAll();
-        List<UserDTO> userDTOS = users.stream().map(user -> mapper.map(user,UserDTO.class)).toList();
-        return userDTOS;
-    }
-
     // ✅ GET USER BY ID
     public UserDTO getUserById(Long id) {
         User user = userRepo.findById(id)

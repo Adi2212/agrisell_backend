@@ -15,7 +15,6 @@ public class UserRegistetionDTO {
     private String email;
     private String password;
     private String role;
-    private FarmerDTO farmer;
-    private CustomerDTO customer;
+    private String phone;
     private Address address;
 }

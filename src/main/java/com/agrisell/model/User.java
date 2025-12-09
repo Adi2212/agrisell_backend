@@ -27,17 +27,15 @@ public class User extends BaseEntity {
     private String email;
     @Column(nullable = false)
     private String password;
- 
+
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     private Role role;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Farmer farmer;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Customer customer;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Address address;
+
+    @Enumerated(EnumType.STRING)
+    private AccStatus accStatus=AccStatus.ACTIVE;
 }

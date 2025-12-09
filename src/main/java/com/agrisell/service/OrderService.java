@@ -4,6 +4,7 @@ import com.agrisell.dto.OrderRequest;
 import com.agrisell.dto.OrderResponse;
 import com.agrisell.model.*;
 import com.agrisell.repository.OrderRepository;
+import com.agrisell.repository.OrderStatusHistoryRepository;
 import com.agrisell.repository.ProductRepository;
 import com.agrisell.repository.UserRepository;
 import com.agrisell.security.JwtUtil;
@@ -14,6 +15,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,51 +27,75 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
     private final ProductRepository productRepository;
+    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
 
     public OrderResponse placeOrder(OrderRequest dto, HttpServletRequest request) {
 
         Order order = new Order();
         order.setPaymentMethod(dto.getPaymentMethod());
+        order.setStatus(Status.PENDING);
 
-        // 🔹 Total bill calculation
-        double total = dto.getItems().stream()
-                .mapToDouble(i -> i.getPrice() * i.getQuantity())
-                .sum();
-        order.setTotalAmount(total);
-
-        System.out.println(total);
-
+        // 🔹 Extract logged-in user
         String token = jwtUtil.extractToken(request);
-        long userId= jwtUtil.extractUserId(token);
-        User user =userRepository.findById(userId).orElse(null);
+        long userId = jwtUtil.extractUserId(token);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         order.setUserId(user.getId());
-        // 🔹 Address snapshot embed
+
+        // 🔹 Snapshot of delivery address
         OrderAddress da = modelMapper.map(user.getAddress(), OrderAddress.class);
         order.setDeliveryAddress(da);
 
-        // 🔹 Order items mapping
+        // 🔹 Calculate total + build order items
+        AtomicReference<Double> total = new AtomicReference<>(0.0);
+
         List<OrderItem> items = dto.getItems().stream().map(i -> {
-            Address pa = productRepository.findById(i.getProductId()).get().getUser().getAddress();
-            if(pa == null){
-                throw new RuntimeException("Seller has no address. Order cannot be processed.");
-            }
+
+            Product product = productRepository.findById(i.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+
+            double price = product.getPrice(); // Fetch REAL price from DB
+            double lineTotal = price * i.getQuantity();
+
+            total.updateAndGet(v -> v + lineTotal);
+
             OrderItem item = new OrderItem();
             item.setProductId(i.getProductId());
             item.setQuantity(i.getQuantity());
-            item.setPrice(i.getPrice());
+            item.setPrice(price); // store DB price
             item.setOrder(order);
+
+            // Seller pickup address
+            Address pa = product.getUser().getAddress();
+            if (pa == null) {
+                throw new RuntimeException("Seller has no address.");
+            }
+
             item.setPickUpAddress(modelMapper.map(pa, OrderAddress.class));
+
             return item;
         }).collect(Collectors.toList());
 
         order.setItems(items);
 
-        // Save + add history entry
-        Order savedOrder = orderRepository.save(order);
-        //addHistory(savedOrder, savedOrder.getStatus());
-        return modelMapper.map(savedOrder, OrderResponse.class);
+        // 🔹 Set total amount
+        order.setTotalAmount(total.get());
 
+        // 🔹 Save order
+        Order savedOrder = orderRepository.save(order);
+
+// 🔹 Save first history entry (PENDING)
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setStatus(savedOrder.getStatus().name());
+        history.setOrder(savedOrder);
+
+        orderStatusHistoryRepository.save(history);
+
+
+        return modelMapper.map(savedOrder, OrderResponse.class);
     }
+
 
     public Order updateStatus(Long orderId, Status status) {
         Order order = orderRepository.findById(orderId)
@@ -80,7 +106,9 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
-    public List<OrderResponse> getUserOrders(Long userId) {
+    public List<OrderResponse> getUserOrders(HttpServletRequest request) {
+        String token = jwtUtil.extractToken(request);
+        Long userId = jwtUtil.extractUserId(token);
         List<Order> orders= orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
         return orders.stream().map(order->modelMapper.map(order,OrderResponse.class)).collect(Collectors.toList());
     }
