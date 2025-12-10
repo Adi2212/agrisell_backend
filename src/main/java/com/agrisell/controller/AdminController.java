@@ -3,6 +3,7 @@ package com.agrisell.controller;
 import com.agrisell.dto.*;
 import com.agrisell.model.*;
 import com.agrisell.service.AdminService;
+import com.agrisell.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final OrderService orderService;
 
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     @GetMapping("/farmers")
@@ -82,5 +84,11 @@ public class AdminController {
         adminService.updateOrderStatus(id, status);
         return "Order status updated";
     }
+
+    @GetMapping("/orders/stats/{days}")
+    public List<OrderStatusStatsResponse> getOrderStats(@PathVariable Long days) {
+        return orderService.getOrderStatusStats(days);
+    }
+
 }
 

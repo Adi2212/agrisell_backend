@@ -146,26 +146,36 @@ public class AdminService {
 
 
     public OrderDetailsAdminResponse getOrderDetails(Long id) {
+
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         OrderDetailsAdminResponse res = modelMapper.map(order, OrderDetailsAdminResponse.class);
 
-        // Add buyer name
+        // Buyer Name
         res.setBuyerName(
                 userRepository.findById(order.getUserId())
                         .map(User::getName)
                         .orElse("Unknown")
         );
 
-        // Map each item
+        // Order Items
         res.setItems(
                 order.getItems().stream()
-                        .map(item -> modelMapper.map(item, OrderItemAdminResponse.class))
+                        .map(item -> {
+                            OrderItemAdminResponse dto =
+                                    modelMapper.map(item, OrderItemAdminResponse.class);
+
+                            // Fetch product and set productName
+                            productRepository.findById(item.getProductId())
+                                    .ifPresent(p -> dto.setProductName(p.getName()));
+
+                            return dto;
+                        })
                         .collect(Collectors.toList())
         );
 
-        // Add history entries
+        // History
         res.setHistory(
                 order.getHistory().stream()
                         .map(h -> modelMapper.map(h, OrderStatusHistoryResponse.class))
@@ -174,6 +184,7 @@ public class AdminService {
 
         return res;
     }
+
 
 
     public void updateOrderStatus(Long id, String status) {

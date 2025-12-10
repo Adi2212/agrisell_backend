@@ -6,6 +6,7 @@ import lombok.Data;
 public class OrderItemAdminResponse {
 
     private Long id;
+    private String productName;
     private Long productId;
     private int quantity;
     private Double price;
