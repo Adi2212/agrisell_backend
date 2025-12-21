@@ -1,58 +1,53 @@
 package com.agrisell.service;
 
-import com.agrisell.dto.OrderRequest;
-import com.agrisell.dto.OrderResponse;
-import com.agrisell.dto.OrderStatusStatsResponse;
+import com.agrisell.dto.*;
 import com.agrisell.model.*;
-import com.agrisell.repository.OrderRepository;
-import com.agrisell.repository.OrderStatusHistoryRepository;
-import com.agrisell.repository.ProductRepository;
-import com.agrisell.repository.UserRepository;
+import com.agrisell.repository.*;
 import com.agrisell.security.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
-    private final ModelMapper modelMapper;
     private final ProductRepository productRepository;
-    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
+    private final UserRepository userRepository;
+    private final OrderStatusHistoryRepository historyRepository;
+    private final JwtUtil jwtUtil;
+    private final ModelMapper modelMapper;
+
+    // ================= CREATE ORDER =================
 
     public OrderResponse placeOrder(OrderRequest dto, HttpServletRequest request) {
 
         Order order = new Order();
-        order.setPaymentMethod(dto.getPaymentMethod());
         order.setStatus(Status.PENDING);
+        order.setPaymentStatus(PaymentStatus.PENDING);
 
-        // 🔹 Extract logged-in user
-        String token = jwtUtil.extractToken(request);
-        long userId = jwtUtil.extractUserId(token);
+        Long userId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         order.setUserId(user.getId());
+        order.setDeliveryAddress(
+                modelMapper.map(user.getAddress(), OrderAddress.class)
+        );
 
-        // 🔹 Snapshot of delivery address
-        OrderAddress da = modelMapper.map(user.getAddress(), OrderAddress.class);
-        order.setDeliveryAddress(da);
-
-        // 🔹 Calculate total + build order items
         AtomicReference<Double> total = new AtomicReference<>(0.0);
 
         List<OrderItem> items = dto.getItems().stream().map(i -> {
@@ -60,138 +55,206 @@ public class OrderService {
             Product product = productRepository.findById(i.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found"));
 
-            double price = product.getPrice(); // Fetch REAL price from DB
-            double lineTotal = price * i.getQuantity();
-
-            total.updateAndGet(v -> v + lineTotal);
-
             OrderItem item = new OrderItem();
-            item.setProductId(i.getProductId());
+            item.setProductId(product.getId());
             item.setQuantity(i.getQuantity());
-            item.setPrice(price); // store DB price
-            item.setOrder(order);
+            item.setPrice(product.getPrice());
+            item.setOrder(order); // ✅ VERY IMPORTANT
 
-            // Seller pickup address
-            Address pa = product.getUser().getAddress();
-            if (pa == null) {
-                throw new RuntimeException("Seller has no address.");
-            }
+            total.updateAndGet(v -> v + product.getPrice() * i.getQuantity());
 
-            item.setPickUpAddress(modelMapper.map(pa, OrderAddress.class));
+            Address sellerAddress = product.getUser().getAddress();
+            item.setPickUpAddress(
+                    modelMapper.map(sellerAddress, OrderAddress.class)
+            );
 
             return item;
-        }).collect(Collectors.toList());
+        }).toList();
 
         order.setItems(items);
-
-        // 🔹 Set total amount
         order.setTotalAmount(total.get());
 
-        // 🔹 Save order
         Order savedOrder = orderRepository.save(order);
+        addHistory(savedOrder, Status.PENDING);
 
-// 🔹 Save first history entry (PENDING)
-        OrderStatusHistory history = new OrderStatusHistory();
-        history.setStatus(savedOrder.getStatus().name());
-        history.setOrder(savedOrder);
-
-        orderStatusHistoryRepository.save(history);
-
-
-        return modelMapper.map(savedOrder, OrderResponse.class);
+        return buildOrderResponse(savedOrder);
     }
 
+    // ================= PAYMENT FAILED =================
 
-    public Order updateStatus(Long orderId, Status status) {
+    public OrderResponse markPaymentFailed(Long orderId) {
+
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order Not Found"));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (order.getPaymentStatus() != PaymentStatus.PAID) {
+            order.setPaymentStatus(PaymentStatus.FAILED);
+            orderRepository.save(order);
+        }
+
+        return buildOrderResponse(order);
+    }
+
+    // ================= PAYMENT SUCCESS =================
+
+    public OrderResponse markPaymentSuccess(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return buildOrderResponse(order);
+        }
+
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setStatus(Status.CONFIRMED);
+
+        Order saved = orderRepository.save(order);
+        addHistory(saved, Status.CONFIRMED);
+
+        return buildOrderResponse(saved);
+    }
+
+    // ================= UPDATE ORDER STATUS =================
+
+    public OrderResponse updateStatus(Long orderId, Status status) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
 
         order.setStatus(status);
-        addHistory(order, status);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        addHistory(saved, status);
+
+        return buildOrderResponse(saved);
     }
+
+    // ================= GET USER ORDERS =================
 
     public List<OrderResponse> getUserOrders(HttpServletRequest request) {
-        String token = jwtUtil.extractToken(request);
-        Long userId = jwtUtil.extractUserId(token);
-        List<Order> orders= orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        return orders.stream().map(order->modelMapper.map(order,OrderResponse.class)).collect(Collectors.toList());
+
+        Long userId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
+
+        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(this::buildOrderResponse)
+                .toList();
     }
 
-    public Order getOrder(Long id) {
-        return orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order Not Found"));
-    }
+    // ================= GET SINGLE ORDER =================
 
-    private void addHistory(Order order, Status status) {
-        OrderStatusHistory entry = new OrderStatusHistory();
-        entry.setStatus(status.name());
-        entry.setOrder(order);
-        order.getHistory().add(entry);
+    public OrderResponse getOrder(Long id) {
+        return buildOrderResponse(
+                orderRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Order not found"))
+        );
     }
 
 
     public List<OrderStatusStatsResponse> getOrderStatusStats(Long days) {
-        // convert to LocalDateTime bounds
-        LocalDateTime start = LocalDate.now().minusDays(days).atStartOfDay();
-        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
+
+        LocalDateTime start = LocalDate.now()
+                .minusDays(days)
+                .atStartOfDay();
+
+        LocalDateTime end = LocalDate.now()
+                .atTime(LocalTime.MAX);
 
         List<Object[]> rows = orderRepository.countByDateAndStatus(start, end);
 
-        // Map<LocalDate, Map<status, count>>
+        // Initialize map with all dates and all statuses
         Map<LocalDate, Map<String, Long>> map = new LinkedHashMap<>();
 
-        // initialize map for each date in range with zeros
         LocalDate d = LocalDate.now().minusDays(days);
         while (!d.isAfter(LocalDate.now())) {
             Map<String, Long> inner = new HashMap<>();
             inner.put("PENDING", 0L);
-            inner.put("PAID", 0L);
+            inner.put("CONFIRMED", 0L);
             inner.put("SHIPPED", 0L);
+            inner.put("DELIVERED", 0L);
             inner.put("CANCELLED", 0L);
             map.put(d, inner);
             d = d.plusDays(1);
         }
 
-        // populate from query rows
+        // Fill data from DB
         for (Object[] row : rows) {
-            // row[0] -> date (String or java.sql.Date), row[1] -> status, row[2] -> count
+
             LocalDate rowDate;
-            if (row[0] instanceof java.sql.Date) {
-                rowDate = ((java.sql.Date) row[0]).toLocalDate();
-            } else if (row[0] instanceof String) {
-                rowDate = LocalDate.parse((String) row[0]);
+            if (row[0] instanceof java.sql.Date sqlDate) {
+                rowDate = sqlDate.toLocalDate();
             } else {
-                // fallback
                 rowDate = LocalDate.parse(row[0].toString());
             }
 
-            String status = (String) row[1];
-            Long cnt;
-            if (row[2] instanceof BigInteger) {
-                cnt = ((BigInteger) row[2]).longValue();
-            } else {
-                cnt = Long.parseLong(row[2].toString());
-            }
+            String status = row[1].toString();
 
-            Map<String, Long> inner = map.getOrDefault(rowDate, new HashMap<>());
-            inner.put(status, cnt);
-            map.put(rowDate, inner);
+            Long count = (row[2] instanceof BigInteger bi)
+                    ? bi.longValue()
+                    : Long.parseLong(row[2].toString());
+
+            map.get(rowDate).put(status, count);
         }
 
-        // Build response list
-        List<OrderStatusStatsResponse> out = new ArrayList<>();
-        for (Map.Entry<LocalDate, Map<String, Long>> e : map.entrySet()) {
-            LocalDate key = e.getKey();
-            Map<String, Long> counts = e.getValue();
-            out.add(new OrderStatusStatsResponse(
-                    key.toString(),
-                    counts.getOrDefault("PENDING", 0L),
-                    counts.getOrDefault("PAID", 0L),
-                    counts.getOrDefault("SHIPPED", 0L),
-                    counts.getOrDefault("CANCELLED", 0L)
+        // Build response
+        List<OrderStatusStatsResponse> response = new ArrayList<>();
+
+        for (Map.Entry<LocalDate, Map<String, Long>> entry : map.entrySet()) {
+            Map<String, Long> c = entry.getValue();
+
+            response.add(new OrderStatusStatsResponse(
+                    entry.getKey().toString(),
+                    c.get("PENDING"),
+                    c.get("CONFIRMED"),
+                    c.get("SHIPPED"),
+                    c.get("DELIVERED"),
+                    c.get("CANCELLED")
             ));
         }
-        return out;
+
+        return response;
+    }
+
+
+    // ================= HELPERS =================
+
+    private void addHistory(Order order, Status status) {
+        OrderStatusHistory h = new OrderStatusHistory();
+        h.setOrder(order);
+        h.setStatus(status.name());
+        historyRepository.save(h);
+    }
+
+
+
+    private OrderResponse buildOrderResponse(Order order) {
+
+        OrderResponse r = new OrderResponse();
+        r.setOrderId(order.getId());
+        r.setTotalAmount(order.getTotalAmount());
+        r.setOrderStatus(order.getStatus());
+        r.setPaymentStatus(order.getPaymentStatus());
+        r.setCreatedAt(order.getCreatedAt());
+        r.setDeliveryAddress(
+                modelMapper.map(order.getDeliveryAddress(), AddressResponse.class)
+        );
+
+        r.setItems(
+                order.getItems().stream().map(item -> {
+                    OrderItemResponse ir = new OrderItemResponse();
+                    ir.setProductId(item.getProductId());
+                    ir.setQuantity(item.getQuantity());
+                    ir.setPrice(item.getPrice());
+                    ir.setLineTotal(item.getPrice() * item.getQuantity());
+                    ir.setProductName(
+                            productRepository.findById(item.getProductId())
+                                    .map(Product::getName)
+                                    .orElse("Product")
+                    );
+                    return ir;
+                }).toList()
+        );
+
+        return r;
     }
 }

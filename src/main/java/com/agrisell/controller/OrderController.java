@@ -2,7 +2,6 @@ package com.agrisell.controller;
 
 import com.agrisell.dto.OrderRequest;
 import com.agrisell.dto.OrderResponse;
-import com.agrisell.model.Order;
 import com.agrisell.model.Status;
 import com.agrisell.service.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,30 +18,53 @@ public class OrderController {
 
     private final OrderService orderService;
 
+    // ✅ Create Order
     @PostMapping("/create")
-    public ResponseEntity<?> createOrder(@RequestBody OrderRequest dto, HttpServletRequest request) {
-        try{
-        return ResponseEntity.ok(orderService.placeOrder(dto, request));}
-        catch (Exception e){
-            e.printStackTrace();
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<OrderResponse> createOrder(
+            @RequestBody OrderRequest dto,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(orderService.placeOrder(dto, request));
     }
 
+    // ✅ Update Order Status (Admin / Seller)
     @PutMapping("/{id}/status")
-    public ResponseEntity<?> updateOrderStatus(
+    public ResponseEntity<OrderResponse> updateOrderStatus(
             @PathVariable Long id,
-            @RequestParam Status status){
+            @RequestParam Status status
+    ) {
         return ResponseEntity.ok(orderService.updateStatus(id, status));
     }
 
+    // ✅ Get Logged-in User Orders
     @GetMapping("/user")
-    public ResponseEntity<?> userOrders(HttpServletRequest request){
+    public ResponseEntity<List<OrderResponse>> userOrders(
+            HttpServletRequest request
+    ) {
         return ResponseEntity.ok(orderService.getUserOrders(request));
     }
 
-    @GetMapping("/single/{id}")
-    public ResponseEntity<?> getOrder(@PathVariable Long id){
+    // ✅ Get Single Order
+    @GetMapping("/{id}")
+    public ResponseEntity<OrderResponse> getOrder(
+            @PathVariable Long id
+    ) {
         return ResponseEntity.ok(orderService.getOrder(id));
+    }
+
+    // ✅ Payment Failed (Cancel)
+    @PutMapping("/{id}/payment-failed")
+    public ResponseEntity<OrderResponse> markPaymentFailed(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(orderService.markPaymentFailed(id));
+    }
+
+    // ✅ Payment Success (Webhook / Success Page)
+    @PutMapping("/{id}/payment-success")
+    public ResponseEntity<OrderResponse> markPaymentSuccess(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(orderService.markPaymentSuccess(id));
     }
 }

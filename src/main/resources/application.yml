@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: agrisell_backend
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/agrisell_db?useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: root
+    password: root123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+server:
+  port: 9090
+
+imagekit:
+  publicKey: public_/OtjO2DvwBlabV/qqTQSK5Kl7EE=
+  privateKey: private_0nOjoCaHZB3BrhKKrz1YMGfclv0=
+  urlEndpoint: https://ik.imagekit.io/Agrisell
+
+jwt:
+  secret: change_this_long_secret_to_secure_value_1234567890abcd
+  expiration-ms: 86400000
+
+stripe:
+  secret:
+    key: ${STRIPE_SECRET_KEY}

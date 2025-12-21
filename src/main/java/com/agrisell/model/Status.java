@@ -1,6 +1,6 @@
 package com.agrisell.model;
 
 public enum Status {
-    PENDING, PAID, SHIPPED, CANCELLED
+    PENDING, CONFIRMED, SHIPPED,DELIVERED, CANCELLED
 }
 

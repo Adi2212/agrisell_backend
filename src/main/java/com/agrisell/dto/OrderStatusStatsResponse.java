@@ -8,9 +8,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderStatusStatsResponse {
-    private String date; // "2024-06-01"
+    private String date;
     private Long pending;
-    private Long paid;
+    private Long confirmed;
     private Long shipped;
+    private Long delivered;
     private Long cancelled;
+
 }

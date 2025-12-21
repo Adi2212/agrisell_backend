@@ -20,7 +20,9 @@ public class Order {
 
     private Long userId;
     private Double totalAmount;
-    private String paymentMethod;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus;
 
     @Enumerated(EnumType.STRING)
     private Status status = Status.PENDING;
