@@ -18,13 +18,11 @@ import com.agrisell.dto.ProductDTO;
 import com.agrisell.service.ProductService;
 
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/products")
-@AllArgsConstructor
-//@RequiredArgsConstructor
+@RequiredArgsConstructor
 public class ProductController {
 
     private final ProductService productService;

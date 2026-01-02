@@ -19,7 +19,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Table(name = "users")
 public class User extends BaseEntity {
- 
+
 
     private String name;
 
@@ -29,6 +29,8 @@ public class User extends BaseEntity {
     private String password;
 
     private String phone;
+
+    private String profileUrl;
 
     @Enumerated(EnumType.STRING)
     private Role role;

@@ -46,7 +46,7 @@ public class AdminController {
 
 
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
-    @GetMapping("/products")
+    @GetMapping("/product")
     public List<ProductAdminResponse> getAllProducts() {
         return adminService.getProducts();
     }

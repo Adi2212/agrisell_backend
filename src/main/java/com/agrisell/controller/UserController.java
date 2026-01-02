@@ -15,17 +15,38 @@ import java.util.List;
 @RequestMapping("/user")
 @RequiredArgsConstructor
 class UserController {
-private final UserService userService;
+    private final UserService userService;
 
-    // ✅ Get User by ID
+    //Get User by ID
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    // ✅ Secure endpoint: Update Address
-    @PostMapping("/address")
-    public ResponseEntity<UserDTO> setUsersAddress(@RequestBody AddressDTO addressDTO, HttpServletRequest request) {
-        return ResponseEntity.ok(userService.setUserAddress(addressDTO,request));
+    // Update Personal Info (name, phone)
+    @PutMapping("/profile")
+    public ResponseEntity<UserDTO> updateProfile(
+            @RequestBody UserDTO userDTO,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(userService.updateProfile(userDTO, request));
+    }
+
+    //Update Address
+    @PutMapping("/address")
+    public ResponseEntity<UserDTO> setUsersAddress(
+            @RequestBody AddressDTO addressDTO,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(userService.setUserAddress(addressDTO, request));
+    }
+
+    //Update Profile Photo
+    @PutMapping("/profile-photo")
+    public ResponseEntity<UserDTO> saveProfilePhoto(
+            @RequestBody UserDTO userDTO,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(userService.updateProfilePhoto(userDTO, request));
     }
 }
